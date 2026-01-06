@@ -3,75 +3,155 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"strconv"
 	"time"
 )
 
+type LoginAttempt struct {
+	id int
+
+	passwordGuess string
+
+	success bool
+
+	blocked bool
+
+	timestamp time.Time
+}
+
+type LoginStats struct {
+	total int
+
+	successful int
+
+	failed int
+
+	blocked int
+}
+
+func makeGuess(i int, correct string) string {
+
+	return "wrong_" + fmt.Sprint(i)
+
+}
+
+func generateAttempts(correct string, maxAttempts int) []LoginAttempt {
+
+	attempts := make([]LoginAttempt, 0, maxAttempts)
+
+	for i := 0; i < maxAttempts; i++ {
+
+		guess := makeGuess(i, correct)
+
+		attempt := LoginAttempt{
+
+			id: i + 1,
+
+			passwordGuess: guess,
+
+			success: guess == correct,
+
+			blocked: false,
+
+			timestamp: time.Now(),
+		}
+
+		attempts = append(attempts, attempt)
+
+	}
+
+	return attempts
+
+}
+
+func simulateLogin(attempts []LoginAttempt, maxFailedInRow int) LoginStats {
+
+	stats := LoginStats{}
+
+	failedInRow := 0
+
+	accountBlocked := false
+
+	for i := 0; i < len(attempts); i++ {
+
+		if accountBlocked {
+
+			stats.blocked++
+			continue
+
+		}
+
+		if attempts[i].success {
+
+			failedInRow = 0
+
+			stats.successful++
+
+		} else {
+
+			failedInRow++
+
+			stats.failed++
+
+		}
+
+		if failedInRow >= maxFailedInRow {
+
+			accountBlocked = true
+
+		}
+
+		stats.total++
+
+	}
+
+	return stats
+
+}
+
+func printSummary(stats LoginStats) {
+
+	fmt.Println("=== Simulation summary ===")
+
+	fmt.Println("Total attempts:", stats.total)
+
+	fmt.Println("Successful logins:", stats.successful)
+
+	fmt.Println("Failed attempts:", stats.failed)
+
+	fmt.Println("Blocked times:", stats.blocked)
+
+	if stats.successful > 0 && stats.blocked == 0 {
+
+		fmt.Println("Result: account probably NOT under attack.")
+
+	} else if stats.blocked > 0 {
+
+		fmt.Println("Result: possible brute-force attack, account should be blocked.")
+
+	} else {
+
+		fmt.Println("Result: need more analysis.")
+
+	}
+
+}
+
 func main() {
+
 	rand.Seed(time.Now().UnixNano())
 
-	var input string
-	var length int
+	correctPassword := "qwerty123"
 
-	// ---- введення довжини ----
-	for {
-		fmt.Print("Введіть довжину пароля (4..128): ")
-		fmt.Scan(&input)
+	maxAttempts := 5
 
-		n, err := strconv.Atoi(input)
-		if err != nil {
-			fmt.Println("Помилка: введіть число.")
-			continue
-		}
-		if n < 4 || n > 128 {
-			fmt.Println("Помилка: довжина має бути від 4 до 128.")
-			continue
-		}
+	maxFailedInRow := 3
 
-		length = n
-		break
-	}
+	fmt.Println("Simulating login attempts to protected account...")
 
-	// ---- вибір категорій ----
-	var pool string
+	attempts := generateAttempts(correctPassword, maxAttempts)
 
-	for {
-		pool = ""
+	stats := simulateLogin(attempts, maxFailedInRow)
 
-		fmt.Print("Малі літери? (1/0): ")
-		fmt.Scan(&input)
-		if input == "1" {
-			pool += "abcdefghijklmnopqrstuvwxyz"
-		}
+	printSummary(stats)
 
-		fmt.Print("Великі літери? (1/0): ")
-		fmt.Scan(&input)
-		if input == "1" {
-			pool += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		}
-
-		fmt.Print("Цифри? (1/0): ")
-		fmt.Scan(&input)
-		if input == "1" {
-			pool += "0123456789"
-		}
-
-		fmt.Print("Спецсимволи? (1/0): ")
-		fmt.Scan(&input)
-		if input == "1" {
-			pool += "!@#$%"
-		}
-
-		if pool == "" {
-			fmt.Println("Помилка: оберіть хоча б одну категорію.")
-			continue
-		}
-		break
-	}
-
-	// ---- генерація пароля ----
-	for i := 0; i < length; i++ {
-		fmt.Print(string(pool[rand.Intn(len(pool))]))
-	}
-	fmt.Println()
 }
